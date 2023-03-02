@@ -1,4 +1,4 @@
-package org.academiadecodigo.the_fellowSHIFT.TCPMultiCLientChat;
+package TCP_MultiClientServer;
 
 public class CommandsImpl {
 
