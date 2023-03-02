@@ -3,108 +3,87 @@ package org.academiadecodigo.the_fellowSHIFT.TCPMultiCLientChat;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-
 import java.util.Vector;
-
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-
 /*
    handle each connection separately
-
    server must relay all messages sent to it to all users
-
  */
 
 public class TCPMultiClientServer {
-
-    private ServerSocket serverSocket;
     private Vector<ClientHandler> clients;
     private ExecutorService service;
-    private int port;
+    private ServerSocket serverSocket;
 
     public TCPMultiClientServer() throws IOException {
 
-        this.port = 51243;
-        this.serverSocket = new ServerSocket(port);
+        this.serverSocket = new ServerSocket(1234);
         this.clients = new Vector<>();
         this.service = Executors.newCachedThreadPool();
 
     }
 
-
-    public void listen() {
-
-        while (serverSocket.isBound()) {
-            try {
-                Socket socket = serverSocket.accept();
-                ClientHandler clientHandler = new ClientHandler(socket);
-                clients.add(clientHandler);
-                service.submit(clientHandler);
-
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
+    public void listen() throws IOException {
+        Socket clientSocket = serverSocket.accept();
+        ClientHandler clientHandler = new ClientHandler(clientSocket);
+        clients.add(clientHandler);
+        service.submit(clientHandler);
     }
 
-    public void broadcast(String msg) {
+    public void broadcast(String msg, Vector<ClientHandler> clients) {
 
         for (ClientHandler c : clients) {
-            c.out.println(msg);
+            c.send(msg);
         }
-
     }
-
 
     class ClientHandler implements Runnable {
 
-        private PrintWriter out;
+        private PrintStream out;
         private BufferedReader in;
         private String sent_message;
         private String received_message;
 
 
         public ClientHandler(Socket clientSocket) throws IOException {
-            this.out = new PrintWriter(clientSocket.getOutputStream());
+            this.out = new PrintStream(clientSocket.getOutputStream());
             this.in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         }
 
-        public String receive() {
-            return received_message;
-        }
-
-
-
-        public void send(String msg) {
-            out.println(msg);
-            sent_message = msg;
+        public void send(String s) {
+            out.println(s);
         }
 
         @Override
         public void run() {
-            System.out.println("Message: ");
-            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-            try {
-                String message_to_send = reader.readLine();
-                send(message_to_send);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+            while (true) {
+                out.println("Message: ");
+                BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+                try {
+                    String message_to_send = reader.readLine();
+                    send(message_to_send);
+
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
             }
-
-
         }
     }
 
-    public static void main(String[] args) {
-        try {
-            TCPMultiClientServer tcpMultiClientServer = new TCPMultiClientServer();
-            tcpMultiClientServer.listen();
 
-        } catch (IOException e) {
-            e.printStackTrace();
+    public static void main(String[] args) throws IOException {
+
+        TCPMultiClientServer tcpMultiClientServer = new TCPMultiClientServer();
+
+        while (true) {
+            try {
+                tcpMultiClientServer.listen();
+            }catch (IOException e){
+                e.printStackTrace();
+            }
+
         }
     }
 }
