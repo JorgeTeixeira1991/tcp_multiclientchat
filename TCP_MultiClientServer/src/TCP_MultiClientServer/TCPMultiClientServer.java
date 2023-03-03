@@ -3,11 +3,10 @@ package TCP_MultiClientServer;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Arrays;
 import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
     /*
        handle each connection separately
        server must relay all messages sent to it to all users
@@ -17,12 +16,15 @@ public class TCPMultiClientServer {
     private Vector<ClientHandler> clients;
     private ExecutorService service;
     private ServerSocket serverSocket;
+    private Socket clientSocket;
+    private String superuser_pswd;
 
     public TCPMultiClientServer() throws IOException {
 
         this.serverSocket = new ServerSocket(1234);
         this.clients = new Vector<>();
         this.service = Executors.newCachedThreadPool();
+        this.superuser_pswd = "cenasetal";
 
     }
 
@@ -40,8 +42,8 @@ public class TCPMultiClientServer {
 
     public void start() throws IOException {
         while (true) {
-            Socket clientSocket = serverSocket.accept();
-            ClientHandler clientHandler = new ClientHandler(clientSocket, this);
+            this.clientSocket = serverSocket.accept();
+            ClientHandler clientHandler = new ClientHandler(this);
             clients.add(clientHandler);
             service.submit(clientHandler);
         }
@@ -63,19 +65,26 @@ public class TCPMultiClientServer {
         }
     }
 
+    public Vector<ClientHandler> getClients() {
+        return clients;
+    }
+
+    public String getSuperuser_pswd() {
+        return superuser_pswd;
+    }
+
     class ClientHandler implements Runnable {
 
         private TCPMultiClientServer server;
+        private Commands commands;
         private User user;
-        private Socket clientSocket;
         private PrintStream out;
         private BufferedReader in;
         private String sent_message;
-        private UsernameValidator usernameValidator;
+        String currentThreadName;
 
-        public ClientHandler(Socket clientSocket, TCPMultiClientServer server) throws IOException {
 
-            this.clientSocket = clientSocket;
+        public ClientHandler(TCPMultiClientServer server) throws IOException {
             this.server = server;
             this.user = new User(server);
             this.out = new PrintStream(clientSocket.getOutputStream());
@@ -95,14 +104,13 @@ public class TCPMultiClientServer {
             out.println(s);
         }
 
-        public void checkForCommands(Commands commands) throws IOException {
-            CommandsImpl cmds = new CommandsImpl(user, server, this);
-            switch (commands) {
-                case CH_NAME-> cmds.changeUsername();
-                case KICK -> cmds.kick();
-                case QUIT -> cmds.quit();
-                case WHISPER -> cmds.whisper();
-                case LOGIN_SU -> cmds.SU_login();
+        public void commandChecker(String msg) throws IOException {
+            switch (msg) {
+                case "/quit" -> Commands.QUIT.quit(server, this, user);
+                case "/ch_name" -> Commands.CH_NAME.changeUsername(server, this, user);
+                case "/kick" -> Commands.KICK.kick();
+                case "/whisper" -> Commands.WHISPER.whisper(server, this, user);
+                case "/super" -> Commands.LOGIN_SU.SU_login(server, this, user);
             }
         }
 
@@ -112,14 +120,8 @@ public class TCPMultiClientServer {
             if (UsernameValidator.isValid(username)) {
                 setUsername(username);
                 broadcast(username + " has joined the chat...");
-            }else {
+            } else {
                 promptForUsername();
-            }
-        }
-
-        public void commandChecker(String msg) throws IOException {
-            if (msg.startsWith("/quit")){
-                checkForCommands(Commands.QUIT);
             }
         }
 
@@ -139,17 +141,17 @@ public class TCPMultiClientServer {
         public void run() {
             try {
                 promptForUsername();
+                this.currentThreadName = Thread.currentThread().getName();
                 while (true) {
-
                     sent_message = in.readLine();
                     commandChecker(sent_message);
-                    if (sent_message == null) break;
-
-                    broadcast(user.getName() + " : " + sent_message);
-
+                    //if (sent_message == null) break;
+                    if (sent_message != user.getCommand()) {
+                        broadcast(user.getName() + " : " + sent_message);
+                    }
                 }
             } catch (IOException e) {
-                //ignore
+                broadcast( currentThreadName + "has unexpectedly disconnected!");
             }
         }
     }

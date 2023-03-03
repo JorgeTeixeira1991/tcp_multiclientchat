@@ -5,7 +5,7 @@ import java.util.regex.Pattern;
 
 public class UsernameValidator {
     private static final String USERNAME_PATTERN =
-            "^[a-zA-Z0-9]([._-](?![._-])|[a-zA-Z0-9]){3,18}[a-zA-Z0-9]$";
+            "^(?=[a-zA-Z0-9._]{4,20}$)(?!.*[_.]{2})[^_.].*[^_.]$";
 
     private static final Pattern pattern = Pattern.compile(USERNAME_PATTERN);
 

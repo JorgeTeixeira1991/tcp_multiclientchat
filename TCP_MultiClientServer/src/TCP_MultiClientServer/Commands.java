@@ -1,5 +1,6 @@
 package TCP_MultiClientServer;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 
 public enum Commands {
@@ -7,13 +8,70 @@ public enum Commands {
     CH_NAME("/ch_name"),
     WHISPER("/whisper"),
     KICK("/kick"),
-    LOGIN_SU("/super");
-    private String command;
-    Commands(String command) {
-        this.command = command;
-    }
-    public String getCommand() {
-        return command;
+    LOGIN_SU("/super"),
+    UNBAN("/unban");
+
+    private String description;
+    Commands(String description) {
+        this.description = description;
     }
 
+    public void quit(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user ) throws IOException {
+        server.broadcast(user.getName() + " has left the chat...");
+        clientHandler.getIn().close();
+        clientHandler.getOut().close();
+        clientHandler.getClientSocket().shutdownInput();
+        clientHandler.getClientSocket().shutdownOutput();
+        clientHandler.getClientSocket().close();
+    }
+
+    public void changeUsername(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user ) throws IOException {
+        String old_username = user.getName();
+        clientHandler.getOut().println("Please choose your new username: ");
+        String new_username = clientHandler.getIn().readLine();
+        if (UsernameValidator.isValid(new_username)) {
+            user.setName(new_username);
+            server.broadcast(old_username + " has changed his username to: " + new_username);
+        } else {
+            changeUsername(server, clientHandler, user);
+        }
+    }
+
+    public void whisper(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user ) {
+
+        for (TCPMultiClientServer.ClientHandler c : server.getClients()) {
+
+        }
+    }
+
+
+    public void SU_login(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user ) throws IOException {
+        int try_count = user.getSU_login_try_count();
+        clientHandler.getOut().println("Super User Password: ");
+        String pswd = clientHandler.getIn().readLine();
+        if (try_count == 3) {
+
+            clientHandler.getOut().println("You have been permanently banned from trying to login as super user!");
+            server.broadcast(clientHandler.getUsername() + "has been permanently banned from trying to login as super user!");
+            user.setBanned(true);
+
+        } else if (pswd != server.getSuperuser_pswd()) {
+
+            user.setSU_login_try_count(try_count + 1);
+            clientHandler.getOut().println("You have tried to login unsuccessfully " + user.getSU_login_try_count() + " times...");
+            SU_login(server, clientHandler, user);
+
+        } else if (pswd == server.getSuperuser_pswd()) {
+            clientHandler.getOut().println("You have successfully logged in as Super User!");
+            user.setAdmin(true);
+        }
+    }
+
+    public void kick() {
+    }
+
+
+    public String getDescription() {
+        return description;
+    }
 }
