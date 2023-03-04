@@ -1,7 +1,7 @@
 package TCP_MultiClientServer;
 
 import java.io.IOException;
-import java.lang.reflect.Method;
+import java.util.Objects;
 
 public enum Commands {
     QUIT("/quit"),
@@ -12,20 +12,21 @@ public enum Commands {
     UNBAN("/unban");
 
     private String description;
+
     Commands(String description) {
         this.description = description;
     }
 
-    public void quit(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user ) throws IOException {
+    public void quit(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user) throws IOException {
+        user.setCommand("/quit");
         server.broadcast(user.getName() + " has left the chat...");
         clientHandler.getIn().close();
         clientHandler.getOut().close();
-        clientHandler.getClientSocket().shutdownInput();
-        clientHandler.getClientSocket().shutdownOutput();
         clientHandler.getClientSocket().close();
     }
 
-    public void changeUsername(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user ) throws IOException {
+    public void changeUsername(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user) throws IOException {
+        user.setCommand("/ch_name");
         String old_username = user.getName();
         clientHandler.getOut().println("Please choose your new username: ");
         String new_username = clientHandler.getIn().readLine();
@@ -37,15 +38,26 @@ public enum Commands {
         }
     }
 
-    public void whisper(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user ) {
+    public void whisper(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user) throws IOException {
 
-        for (TCPMultiClientServer.ClientHandler c : server.getClients()) {
-
+        boolean exists = false;
+        clientHandler.getOut().println("You have now entered whisper mode...");
+        clientHandler.getOut().println("Choose the person to whisper: ");
+        String whisper_name = clientHandler.getIn().readLine();
+        for (TCPMultiClientServer.ClientHandler name : server.getClients()) {
+            if (name.getUsername().equals(whisper_name) && !clientHandler.getUsername().equals(whisper_name)) {
+                clientHandler.getOut().println("You are now whispering " + whisper_name);
+                while (true) {
+                    String sent_message = clientHandler.getIn().readLine();
+                    name.send(clientHandler.getUsername() + " (whisper): " + sent_message);
+                }
+            }
         }
     }
 
 
-    public void SU_login(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user ) throws IOException {
+    public void SU_login(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user) throws IOException {
+        user.setCommand("/super");
         int try_count = user.getSU_login_try_count();
         clientHandler.getOut().println("Super User Password: ");
         String pswd = clientHandler.getIn().readLine();
