@@ -18,6 +18,8 @@ public enum Commands {
     }
 
     public void quit(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user) throws IOException {
+
+        server.getNames().remove(clientHandler.getUsername());
         user.setCommand("/quit");
         server.broadcast(user.getName() + " has left the chat...");
         clientHandler.getIn().close();
@@ -30,9 +32,13 @@ public enum Commands {
         String old_username = user.getName();
         clientHandler.getOut().println("Please choose your new username: ");
         String new_username = clientHandler.getIn().readLine();
-        if (UsernameValidator.isValid(new_username)) {
+        if (UsernameValidator.isValid(new_username) && !server.getNames().contains(new_username)) {
             user.setName(new_username);
+            server.getNames().remove(old_username);
             server.broadcast(old_username + " has changed his username to: " + new_username);
+        } else if (server.getNames().contains(new_username)) {
+            clientHandler.getOut().println("Username already taken!");
+            changeUsername(server, clientHandler, user);
         } else {
             changeUsername(server, clientHandler, user);
         }
@@ -40,15 +46,18 @@ public enum Commands {
 
     public void whisper(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user) throws IOException {
 
-        boolean exists = false;
+        user.setCommand("/whisper");
         clientHandler.getOut().println("You have now entered whisper mode...");
         clientHandler.getOut().println("Choose the person to whisper: ");
         String whisper_name = clientHandler.getIn().readLine();
         for (TCPMultiClientServer.ClientHandler name : server.getClients()) {
             if (name.getUsername().equals(whisper_name) && !clientHandler.getUsername().equals(whisper_name)) {
                 clientHandler.getOut().println("You are now whispering " + whisper_name);
-                while (true) {
-                    String sent_message = clientHandler.getIn().readLine();
+                String sent_message;
+                while ((sent_message = clientHandler.getIn().readLine()) != null) {
+                    if (sent_message.equals(Commands.QUIT.description)){
+                        break;
+                    }
                     name.send(clientHandler.getUsername() + " (whisper): " + sent_message);
                 }
             }

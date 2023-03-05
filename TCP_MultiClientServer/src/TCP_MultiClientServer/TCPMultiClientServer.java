@@ -3,8 +3,8 @@ package TCP_MultiClientServer;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -15,6 +15,7 @@ import java.util.concurrent.Executors;
 
 public class TCPMultiClientServer {
     private Vector<ClientHandler> clients;
+    private ArrayList<String> names;
     private ExecutorService service;
     private ServerSocket serverSocket;
     private Socket clientSocket;
@@ -24,6 +25,7 @@ public class TCPMultiClientServer {
 
         this.serverSocket = new ServerSocket(1234);
         this.clients = new Vector<>();
+        this.names = new ArrayList<>();
         this.service = Executors.newCachedThreadPool();
         this.superuser_pswd = "cenasetal";
 
@@ -43,7 +45,7 @@ public class TCPMultiClientServer {
 
     public void start() throws IOException {
         while (true) {
-            clientSocket = serverSocket.accept();
+            this.clientSocket = serverSocket.accept();
             ClientHandler clientHandler = new ClientHandler(this);
             clients.add(clientHandler);
             service.submit(clientHandler);
@@ -70,6 +72,10 @@ public class TCPMultiClientServer {
         return clients;
     }
 
+    public ArrayList<String> getNames() {
+        return names;
+    }
+
     public String getSuperuser_pswd() {
         return superuser_pswd;
     }
@@ -89,12 +95,13 @@ public class TCPMultiClientServer {
             this.out = new PrintStream(clientSocket.getOutputStream());
             this.in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             this.sent_message = "default";
-            out.println("__       __  __              ____     ____              _____ __  ____________________       \n" +
-                    " / /      / /_/ /_  ___       / __/__  / / /___ _      __/ ___// / / /  _/ ____/_  __/\\ \\      \n" +
-                    "/ /      / __/ __ \\/ _ \\     / /_/ _ \\/ / / __ \\ | /| / /\\__ \\/ /_/ // // /_    / /    \\ \\     \n" +
-                    "\\ \\     / /_/ / / /  __/    / __/  __/ / / /_/ / |/ |/ /___/ / __  // // __/   / /     / /     \n" +
-                    " \\_\\____\\__/_/ /_/\\___/____/_/  \\___/_/_/\\____/|__/|__//____/_/ /_/___/_/     /_/_____/_/      \n" +
-                    "  /_____/            /_____/                                                   /_____/         ");
+            out.println(" / /| | | |           / _|   | | |             /  ___| | | |_   _|  ___|_   _\\ \\   \n" +
+                    " / / | |_| |__   ___  | |_ ___| | | _____      _\\ `--.| |_| | | | | |_    | |  \\ \\  \n" +
+                    "< <  | __| '_ \\ / _ \\ |  _/ _ \\ | |/ _ \\ \\ /\\ / /`--. \\  _  | | | |  _|   | |   > > \n" +
+                    " \\ \\ | |_| | | |  __/ | ||  __/ | | (_) \\ V  V //\\__/ / | | |_| |_| |     | |  / /  \n" +
+                    "  \\_\\ \\__|_| |_|\\___| |_| \\___|_|_|\\___/ \\_/\\_/ \\____/\\_| |_/\\___/\\_|     \\_/ /_/   \n" +
+                    "  ______          ______                                                  ______    \n" +
+                    " |______|        |______|                                                |______|   ");
         }
 
         public void setUsername(String name) {
@@ -123,13 +130,19 @@ public class TCPMultiClientServer {
         public void promptForUsername() throws IOException {
             out.println("Please choose your username: ");
             String username = in.readLine();
-            if (UsernameValidator.isValid(username)) {
+            if (UsernameValidator.isValid(username) && !names.contains(username)) {
                 setUsername(username);
+                names.add(username);
                 broadcast(username + " has joined the chat...");
-            } else {
+                System.out.println(names);
+            } else if (names.contains(username)) {
+                out.println("Username already taken!");
+                promptForUsername();
+            }else {
                 promptForUsername();
             }
         }
+
         public void setSent_message(String sent_message) {
             this.sent_message = sent_message;
         }
@@ -156,7 +169,9 @@ public class TCPMultiClientServer {
             }
             try {
                 while (true) {
-                    if (user.getCommand() == "/quit"){break;}
+                    if (user.getCommand() == "/quit") {
+                        break;
+                    }
                     sent_message = in.readLine();
                     commandChecker(sent_message);
                     if (!sent_message.equals(user.getCommand())) {
