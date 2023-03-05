@@ -138,7 +138,7 @@ public class TCPMultiClientServer {
             } else if (names.contains(username)) {
                 out.println("Username already taken!");
                 promptForUsername();
-            }else {
+            } else {
                 promptForUsername();
             }
         }
@@ -168,28 +168,18 @@ public class TCPMultiClientServer {
                 e.printStackTrace();
             }
             try {
-                while ((sent_message = in.readLine()) != null)  {
-                    if (sent_message == "/quit") {
-                        clients.remove(this);
-                        names.remove(this.getUsername());
-                        System.out.println(Thread.currentThread().getName() + " entrou");
-                        this.interrupt();
-                        break;
-                    }
+                while (true) {
+                    sent_message = in.readLine();
+                    System.out.println(sent_message);
                     commandChecker(sent_message);
                     if (!sent_message.equals(user.getCommand())) {
-                        broadcast(user.getName() + ": " + sent_message);
+                        broadcast("\n" + user.getName() + ": " + sent_message);
                     }
                 }
             } catch (IOException e) {
-                try {
-                    clients.remove(this);
-                    names.remove(this.getUsername());
-                    clientSocket.close();
-                } catch (IOException ex) {
-                    throw new RuntimeException(ex);
-                }
-                e.printStackTrace();
+                names.remove(this.getUsername());
+                System.out.println(names);
+                clients.remove(this);
             }
         }
     }

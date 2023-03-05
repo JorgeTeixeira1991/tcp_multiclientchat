@@ -19,12 +19,18 @@ public enum Commands {
 
     public void quit(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user) throws IOException {
 
-        server.getNames().remove(clientHandler.getUsername());
+        System.out.println(server.getNames());
         user.setCommand("/quit");
         server.broadcast(user.getName() + " has left the chat...");
-        clientHandler.getOut().close();
+        server.getNames().remove(clientHandler.getUsername());
         clientHandler.getIn().close();
-        clientHandler.interrupt();
+        clientHandler.getOut().close();
+        clientHandler.getClientSocket().close();
+        server.getClients().remove(clientHandler.getClientSocket());
+        in.close();
+        out.close();
+        clientSocket.close();
+        clients.remove(clientSocket);
     }
 
     public void changeUsername(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user) throws IOException {
