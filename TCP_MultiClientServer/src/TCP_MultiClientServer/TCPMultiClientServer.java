@@ -4,10 +4,8 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Vector;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+
     /*
        handle each connection separately
        server must relay all messages sent to it to all users
@@ -16,7 +14,7 @@ import java.util.concurrent.Executors;
 public class TCPMultiClientServer {
     private Vector<ClientHandler> clients;
     private ArrayList<String> names;
-    private ExecutorService service;
+    private ArrayList<Thread> service;
     private ServerSocket serverSocket;
     private Socket clientSocket;
     private String superuser_pswd;
@@ -26,7 +24,7 @@ public class TCPMultiClientServer {
         this.serverSocket = new ServerSocket(1234);
         this.clients = new Vector<>();
         this.names = new ArrayList<>();
-        this.service = Executors.newCachedThreadPool();
+        this.service = new ArrayList<>();
         this.superuser_pswd = "cenasetal";
 
     }
@@ -47,8 +45,10 @@ public class TCPMultiClientServer {
         while (true) {
             this.clientSocket = serverSocket.accept();
             ClientHandler clientHandler = new ClientHandler(this);
+            Thread client = new Thread(clientHandler);
+            service.add(client);
+            client.start();
             clients.add(clientHandler);
-            service.submit(clientHandler);
         }
     }
 
@@ -80,7 +80,7 @@ public class TCPMultiClientServer {
         return superuser_pswd;
     }
 
-    class ClientHandler implements Runnable {
+    class ClientHandler extends Thread {
 
         private TCPMultiClientServer server;
         private User user;
@@ -168,17 +168,27 @@ public class TCPMultiClientServer {
                 e.printStackTrace();
             }
             try {
-                while (true) {
-                    if (user.getCommand() == "/quit") {
+                while ((sent_message = in.readLine()) != null)  {
+                    if (sent_message == "/quit") {
+                        clients.remove(this);
+                        names.remove(this.getUsername());
+                        System.out.println(Thread.currentThread().getName() + " entrou");
+                        this.interrupt();
                         break;
                     }
-                    sent_message = in.readLine();
                     commandChecker(sent_message);
                     if (!sent_message.equals(user.getCommand())) {
                         broadcast(user.getName() + ": " + sent_message);
                     }
                 }
             } catch (IOException e) {
+                try {
+                    clients.remove(this);
+                    names.remove(this.getUsername());
+                    clientSocket.close();
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
                 e.printStackTrace();
             }
         }

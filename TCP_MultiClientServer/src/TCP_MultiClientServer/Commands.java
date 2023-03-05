@@ -22,20 +22,23 @@ public enum Commands {
         server.getNames().remove(clientHandler.getUsername());
         user.setCommand("/quit");
         server.broadcast(user.getName() + " has left the chat...");
-        clientHandler.getIn().close();
         clientHandler.getOut().close();
-        clientHandler.getClientSocket().close();
+        clientHandler.getIn().close();
+        clientHandler.interrupt();
     }
 
     public void changeUsername(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user) throws IOException {
         user.setCommand("/ch_name");
+        System.out.println(server.getNames());
         String old_username = user.getName();
         clientHandler.getOut().println("Please choose your new username: ");
         String new_username = clientHandler.getIn().readLine();
         if (UsernameValidator.isValid(new_username) && !server.getNames().contains(new_username)) {
-            user.setName(new_username);
+            clientHandler.setUsername(new_username);
             server.getNames().remove(old_username);
+            server.getNames().add(new_username);
             server.broadcast(old_username + " has changed his username to: " + new_username);
+            System.out.println(server.getNames());
         } else if (server.getNames().contains(new_username)) {
             clientHandler.getOut().println("Username already taken!");
             changeUsername(server, clientHandler, user);
