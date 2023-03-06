@@ -1,8 +1,6 @@
 package TCP_MultiClientServer;
 
 import java.io.IOException;
-import java.util.Objects;
-
 public enum Commands {
     QUIT("/quit"),
     CH_NAME("/ch_name"),
@@ -19,18 +17,15 @@ public enum Commands {
 
     public void quit(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user) throws IOException {
 
-        System.out.println(server.getNames());
         user.setCommand("/quit");
         server.broadcast(user.getName() + " has left the chat...");
         server.getNames().remove(clientHandler.getUsername());
-        clientHandler.getIn().close();
-        clientHandler.getOut().close();
+        System.out.println(server.getNames());
+        //clientHandler.getIn().close();
+        //clientHandler.getOut().close();
+        server.getService().remove(Thread.currentThread());
         clientHandler.getClientSocket().close();
-        server.getClients().remove(clientHandler.getClientSocket());
-        in.close();
-        out.close();
-        clientSocket.close();
-        clients.remove(clientSocket);
+        server.getClients().remove(clientHandler);
     }
 
     public void changeUsername(TCPMultiClientServer server, TCPMultiClientServer.ClientHandler clientHandler, User user) throws IOException {

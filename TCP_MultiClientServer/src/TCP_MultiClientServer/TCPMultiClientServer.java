@@ -5,6 +5,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Vector;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 
     /*
        handle each connection separately
@@ -14,8 +16,9 @@ import java.util.Vector;
 public class TCPMultiClientServer {
     private Vector<ClientHandler> clients;
     private ArrayList<String> names;
-    private ArrayList<Thread> service;
+    private CopyOnWriteArrayList<Thread> service;
     private ServerSocket serverSocket;
+    private ClientHandler clientHandler;
     private Socket clientSocket;
     private String superuser_pswd;
 
@@ -24,7 +27,7 @@ public class TCPMultiClientServer {
         this.serverSocket = new ServerSocket(1234);
         this.clients = new Vector<>();
         this.names = new ArrayList<>();
-        this.service = new ArrayList<>();
+        this.service = new CopyOnWriteArrayList<>();
         this.superuser_pswd = "cenasetal";
 
     }
@@ -41,16 +44,28 @@ public class TCPMultiClientServer {
         }
     }
 
+    public CopyOnWriteArrayList<Thread> getService() {
+        return service;
+    }
+
     public void start() throws IOException {
         while (true) {
-            this.clientSocket = serverSocket.accept();
-            ClientHandler clientHandler = new ClientHandler(this);
-            Thread client = new Thread(clientHandler);
-            service.add(client);
-            client.start();
+            checkClients(service);
+            clientSocket = serverSocket.accept();
+            this.clientHandler = new ClientHandler(this);
+            service.add(clientHandler.client);
+            clientHandler.client.start();
             clients.add(clientHandler);
         }
     }
+
+    public synchronized void removeClient() {
+        clients.remove(clientHandler);
+        service.remove(clientHandler);
+        broadcast( clientHandler.getUsername() + " has left the chat.");
+        names.remove(clientHandler.getUsername());
+    }
+
 
     public void shutdown() throws IOException {
         serverSocket.close();
@@ -67,6 +82,15 @@ public class TCPMultiClientServer {
             }
         }
     }
+    private synchronized void checkClients(CopyOnWriteArrayList<Thread> threads) {
+        for (Thread client : threads) {
+            if (!client.isAlive()) {
+                removeClient();
+            }
+        }
+    }
+
+
 
     public Vector<ClientHandler> getClients() {
         return clients;
@@ -80,9 +104,10 @@ public class TCPMultiClientServer {
         return superuser_pswd;
     }
 
-    class ClientHandler extends Thread {
+    class ClientHandler implements Runnable {
 
-        private TCPMultiClientServer server;
+        private static TCPMultiClientServer server;
+        private Thread client;
         private User user;
         private PrintStream out;
         private BufferedReader in;
@@ -94,14 +119,13 @@ public class TCPMultiClientServer {
             this.user = new User(server);
             this.out = new PrintStream(clientSocket.getOutputStream());
             this.in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            this.client = new Thread(this);
             this.sent_message = "default";
-            out.println(" / /| | | |           / _|   | | |             /  ___| | | |_   _|  ___|_   _\\ \\   \n" +
-                    " / / | |_| |__   ___  | |_ ___| | | _____      _\\ `--.| |_| | | | | |_    | |  \\ \\  \n" +
-                    "< <  | __| '_ \\ / _ \\ |  _/ _ \\ | |/ _ \\ \\ /\\ / /`--. \\  _  | | | |  _|   | |   > > \n" +
-                    " \\ \\ | |_| | | |  __/ | ||  __/ | | (_) \\ V  V //\\__/ / | | |_| |_| |     | |  / /  \n" +
-                    "  \\_\\ \\__|_| |_|\\___| |_| \\___|_|_|\\___/ \\_/\\_/ \\____/\\_| |_/\\___/\\_|     \\_/ /_/   \n" +
-                    "  ______          ______                                                  ______    \n" +
-                    " |______|        |______|                                                |______|   ");
+            out.println("    __       __    __              ___        __   __                ____   __ __   ____   ____ ______     __  ");
+            out.println("   / /      / /_  / /  ___        / _/ ___   / /  / / ___  _    __  / __/  / // /  /  _/  / __//_  __/     \\ \\ ");
+            out.println("  < <      / __/ / _ \\/ -_)      / _/ / -_) / /  / / / _ \\| |/|/ / _\\ \\   / _  /  _/ /   / _/   / /         > >");
+            out.println("   \\_\\ ____\\__/ /_//_/\\__/  ____/_/   \\__/ /_/  /_/  \\___/|__,__/ /___/  /_//_/  /___/  /_/    /_/     ____/_/ ");
+            out.println("      /___/                /___/                                                                      /___/    ");
         }
 
         public void setUsername(String name) {
@@ -159,6 +183,7 @@ public class TCPMultiClientServer {
             return out;
         }
 
+
         @Override
         public void run() {
             try {
@@ -169,7 +194,9 @@ public class TCPMultiClientServer {
             }
             try {
                 while (true) {
-                    sent_message = in.readLine();
+                    if ((sent_message = in.readLine()) == null) {
+                        break;
+                    }
                     System.out.println(sent_message);
                     commandChecker(sent_message);
                     if (!sent_message.equals(user.getCommand())) {
@@ -177,9 +204,7 @@ public class TCPMultiClientServer {
                     }
                 }
             } catch (IOException e) {
-                names.remove(this.getUsername());
-                System.out.println(names);
-                clients.remove(this);
+                e.printStackTrace();
             }
         }
     }
